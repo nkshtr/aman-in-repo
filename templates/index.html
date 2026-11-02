@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+
+{% block title %}Smart Road Damage Detection - Home{% endblock %}
+
+{% block content %}
+<div class="page-container">
+
+    <!-- Hero Banner -->
+    <section class="hero-card">
+        <h1 class="hero-title">Automated Road Damage & Pothole Detection</h1>
+        <p class="hero-subtitle">
+            Upload a road photo to instantly detect potholes and surface cracks using an AI-powered 
+            <strong>YOLOv8</strong> deep learning model. The system highlights damages, assesses severity, 
+            and provides repair recommendations to prioritize road maintenance.
+        </p>
+
+        <div class="steps-row">
+            <div class="step-item">
+                <span class="step-num">1</span>
+                <span class="step-desc"><strong>Upload Photo</strong><br>Select a road image (JPG/PNG)</span>
+            </div>
+            <div class="step-item">
+                <span class="step-num">2</span>
+                <span class="step-desc"><strong>YOLOv8 Analysis</strong><br>AI identifies cracks & potholes</span>
+            </div>
+            <div class="step-item">
+                <span class="step-num">3</span>
+                <span class="step-desc"><strong>Severity Report</strong><br>Damage score & repair plan</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Upload Card -->
+    <section class="upload-section">
+        <div class="card upload-card">
+            <h2 class="card-title">Upload a Road Image</h2>
+            <p class="card-instructions">
+                Select an image from your device or drop it below. Maximum file size is <strong>5 MB</strong>. Supported formats: <strong>JPG, JPEG, PNG</strong>.
+            </p>
+
+            <form id="upload-form" action="{{ url_for('upload_image') }}" method="POST" enctype="multipart/form-data">
+                
+                <!-- Drag and Drop Dropzone -->
+                <div class="dropzone" id="dropzone">
+                    <input type="file" name="image" id="file-input" accept=".jpg,.jpeg,.png" required class="file-input-hidden">
+                    
+                    <div class="dropzone-content" id="dropzone-content">
+                        <div class="upload-icon">📷</div>
+                        <p class="dropzone-text"><strong>Click to browse</strong> or drag & drop a road image here</p>
+                        <p class="dropzone-subtext">JPG, JPEG, PNG (up to 5 MB)</p>
+                    </div>
+
+                    <!-- Client-side Image Preview -->
+                    <div class="preview-box" id="preview-box" style="display: none;">
+                        <img id="image-preview" src="#" alt="Preview" class="preview-img">
+                        <div class="preview-details">
+                            <span id="preview-filename" class="preview-filename"></span>
+                            <span id="preview-filesize" class="preview-filesize"></span>
+                            <button type="button" id="remove-file-btn" class="btn-text-danger">Change image</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Form Controls Row -->
+                <div class="form-grid">
+                    <!-- Location Field -->
+                    <div class="form-group">
+                        <label for="location" class="form-label">
+                            <span>Street Name or Landmark</span>
+                            <span class="label-optional">(Optional)</span>
+                        </label>
+                        <input type="text" name="location" id="location" class="form-control" placeholder="e.g. 5th Main Road, North Sector">
+                    </div>
+
+                    <!-- Detection Sensitivity -->
+                    <div class="form-group">
+                        <label for="confidence" class="form-label">
+                            <span>Detection Sensitivity</span>
+                            <span class="label-hint">(Confidence threshold)</span>
+                        </label>
+                        <select name="confidence" id="confidence" class="form-control">
+                            <option value="0.20" selected>Normal (20% confidence - Recommended)</option>
+                            <option value="0.15">High Sensitivity (15% - catches faint cracks)</option>
+                            <option value="0.25">Strict (25% - filters borderline noise)</option>
+                            <option value="0.30">Very Strict (30% - only highest confidence)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="form-actions">
+                    <button type="submit" id="submit-btn" class="btn btn-primary btn-large">
+                        <span class="btn-icon">🔍</span>
+                        <span class="btn-text">Detect Road Damage</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </section>
+
+    <!-- Built-in Samples Gallery -->
+    {% if samples %}
+    <section class="samples-section" id="samples-section">
+        <div class="section-header">
+            <h2 class="section-title">Or Try A Built-in Sample Image</h2>
+            <p class="section-subtitle">Click any sample below to run an instant analysis without uploading your own file:</p>
+        </div>
+
+        <div class="samples-grid">
+            {% for s in samples %}
+            <div class="sample-card">
+                <div class="sample-img-wrapper">
+                    <img src="{{ url_for('serve_sample', filename=s.filename) }}" alt="{{ s.title }}" class="sample-thumb" loading="lazy">
+                </div>
+                <div class="sample-info">
+                    <h3 class="sample-name">{{ s.title }}</h3>
+                    <p class="sample-desc">{{ s.desc }}</p>
+                    <a href="{{ url_for('test_sample', filename=s.filename) }}" class="btn btn-secondary btn-sm sample-btn">
+                        Test This Sample &rarr;
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    <!-- How It Works Educational Section -->
+    <section class="info-card">
+        <h2 class="card-title">How It Works (School Viva & Presentation Guide)</h2>
+        <div class="info-grid">
+            <div class="info-block">
+                <h3>1. YOLOv8 Detection</h3>
+                <p>The system passes the image into a pretrained <strong>YOLOv8 Nano</strong> neural network trained on the international <strong>RDD2022</strong> (Road Damage Dataset). It identifies bounding boxes for <em>Potholes</em>, <em>Longitudinal Cracks</em>, <em>Transverse Cracks</em>, and <em>Alligator Cracks</em> in a single forward pass.</p>
+            </div>
+            <div class="info-block">
+                <h3>2. Relative Severity Metric</h3>
+                <p>Damage severity is determined by the bounding box area relative to the whole image: <strong>Low</strong> (&lt;5%), <strong>Medium</strong> (5%–15%), and <strong>High</strong> (&gt;15%). Potholes are automatically escalated by one tier because of their sudden impact risk.</p>
+            </div>
+            <div class="info-block">
+                <h3>3. Road Condition Grading</h3>
+                <p>Overall road state is categorized as <strong>Good</strong> (0 defects), <strong>Fair</strong> (only low severity cracks), <strong>Poor</strong> (at least one medium defect), or <strong>Critical</strong> (any high severity damage or 5+ potholes).</p>
+            </div>
+        </div>
+    </section>
+
+</div>
+
+<!-- Loading Overlay displayed during model processing -->
+<div class="loading-overlay" id="loading-overlay" style="display: none;">
+    <div class="loading-modal">
+        <div class="spinner"></div>
+        <h3 class="loading-title">Analyzing Road Surface</h3>
+        <p class="loading-desc">Running YOLOv8 deep learning model to scan for potholes and cracks. Please wait...</p>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+
+{% block title %}Inspection Result - Smart Road Damage Detection{% endblock %}
+
+{% block content %}
+<div class="page-container">
+
+    <!-- Header Actions -->
+    <div class="result-top-bar">
+        <div>
+            <h1 class="page-heading">Road Surface Analysis Report</h1>
+            <p class="page-subheading">
+                {% if is_historical %}
+                    Historical Record &bull; Inspected on: <strong>{{ timestamp }}</strong>
+                {% else %}
+                    Inspection Completed Successfully &bull; Location: <strong>{{ location }}</strong>
+                {% endif %}
+            </p>
+        </div>
+        <div class="action-buttons-group">
+            <a href="{{ url_for('download_result', filename=annotated_image) }}" class="btn btn-outline" download>
+                <span class="btn-icon">📥</span> Download Result
+            </a>
+            <a href="{{ url_for('index') }}" class="btn btn-primary">
+                <span class="btn-icon">🔄</span> Analyze Another Image
+            </a>
+        </div>
+    </div>
+
+    <!-- Overview Scorecards Grid -->
+    <div class="metrics-grid">
+        <!-- Road Condition Card -->
+        <div class="metric-card metric-card-main">
+            <span class="metric-label">Overall Road Condition</span>
+            <div class="condition-badge-large {{ badge_class }}">
+                <span class="badge-dot"></span>
+                <span class="badge-text">{{ condition }}</span>
+            </div>
+            <span class="metric-subtext">Based on defect size & density</span>
+        </div>
+
+        <!-- Total Defects Found -->
+        <div class="metric-card">
+            <span class="metric-label">Total Damages Found</span>
+            <span class="metric-number">{{ damage_count }}</span>
+            <span class="metric-subtext">Potholes & surface cracks detected</span>
+        </div>
+
+        <!-- Location Card -->
+        <div class="metric-card">
+            <span class="metric-label">Inspection Location</span>
+            <span class="metric-value-text">{{ location }}</span>
+            <span class="metric-subtext">Street name / landmark</span>
+        </div>
+
+        <!-- Model Confidence Cutoff -->
+        <div class="metric-card">
+            <span class="metric-label">Detection Model</span>
+            <span class="metric-value-text">YOLOv8 Nano</span>
+            <span class="metric-subtext">
+                {% if confidence_used %}Threshold: {{ confidence_used }}%{% else %}RDD2022 Trained{% endif %}
+            </span>
+        </div>
+    </div>
+
+    <!-- Repair Recommendation Banner -->
+    <div class="recommendation-card {{ badge_class }}-border">
+        <div class="rec-icon">
+            {% if condition == 'Good' %}✅
+            {% elif condition == 'Fair' %}⚠️
+            {% elif condition == 'Poor' %}🛠️
+            {% else %}🚨{% endif %}
+        </div>
+        <div class="rec-content">
+            <h3 class="rec-title">Maintenance Recommendation ({{ condition }} Condition)</h3>
+            <p class="rec-text">{{ recommendation }}</p>
+        </div>
+    </div>
+
+    <!-- Side-by-Side Visual Comparison -->
+    <section class="visual-comparison-card">
+        <h2 class="card-title">Visual Comparison: Original vs. YOLOv8 Annotated</h2>
+        <p class="card-instructions">
+            The left panel shows the unprocessed road photo. The right panel shows the bounding boxes, confidence percentages, and severity grades identified by the YOLOv8 model.
+        </p>
+
+        <div class="images-comparison-grid">
+            <!-- Original Image -->
+            <div class="image-box">
+                <div class="image-box-header">
+                    <span class="box-tag">Original Photo</span>
+                </div>
+                <div class="image-frame">
+                    <img src="{{ url_for('static', filename='uploads/' ~ original_image) }}" alt="Original Road" class="responsive-img">
+                </div>
+            </div>
+
+            <!-- Annotated Result -->
+            <div class="image-box">
+                <div class="image-box-header">
+                    <span class="box-tag box-tag-ai">AI Annotated Result</span>
+                </div>
+                <div class="image-frame">
+                    <img src="{{ url_for('static', filename='results/' ~ annotated_image) }}" alt="Annotated Road" class="responsive-img">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Detections Breakdown Table -->
+    <section class="detections-card">
+        <h2 class="card-title">Defect Breakdown & Severity Log</h2>
+        
+        {% if damage_count == 0 %}
+            <!-- Road Looks Fine State -->
+            <div class="empty-detections-box">
+                <div class="empty-icon">🛣️</div>
+                <h3>Road Looks Fine!</h3>
+                <p>No structural damage, potholes, or significant cracks were detected in this image at the current sensitivity setting.</p>
+                <p class="empty-subtext">The pavement surface appears smooth and well-maintained.</p>
+            </div>
+        {% else %}
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Damage Type</th>
+                            <th>Model Confidence</th>
+                            <th>Image Area Covered</th>
+                            <th>Severity Grade</th>
+                            <th>Severity Logic Applied</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in detections %}
+                        <tr>
+                            <td><strong>{{ loop.index }}</strong></td>
+                            <td>
+                                <span class="damage-tag damage-{{ item.damage_type | lower | replace(' ', '-') }}">
+                                    {{ item.damage_type }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="conf-bar-wrapper">
+                                    <div class="conf-bar-track">
+                                        <div class="conf-bar-fill" style="width: {{ item.confidence }}%;"></div>
+                                    </div>
+                                    <span class="conf-text">{{ item.confidence }}%</span>
+                                </div>
+                            </td>
+                            <td>{{ item.area_percentage }}% of image</td>
+                            <td>
+                                <span class="severity-badge severity-{{ item.severity | lower }}">
+                                    {{ item.severity }}
+                                </span>
+                            </td>
+                            <td class="table-note">
+                                {% if 'pothole' in item.damage_type | lower %}
+                                    Pothole rule: escalated +1 tier for collision risk
+                                {% elif item.area_percentage < 5 %}
+                                    Covers &lt; 5% area (Low)
+                                {% elif item.area_percentage <= 15 %}
+                                    Covers 5%–15% area (Medium)
+                                {% else %}
+                                    Covers &gt; 15% area (High)
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+    </section>
+
+    <!-- Navigation / Bottom Actions -->
+    <div class="bottom-actions">
+        <a href="{{ url_for('index') }}" class="btn btn-secondary">
+            &larr; Analyze Another Road Image
+        </a>
+        <a href="{{ url_for('history') }}" class="btn btn-outline">
+            View All Inspections History &rarr;
+        </a>
+    </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}Inspection History - Smart Road Damage Detection{% endblock %}
+
+{% block content %}
+<div class="page-container">
+
+    <div class="result-top-bar">
+        <div>
+            <h1 class="page-heading">Road Inspection History</h1>
+            <p class="page-subheading">Past road analyses logged locally via SQLite.</p>
+        </div>
+        <div class="action-buttons-group">
+            {% if records %}
+            <form action="{{ url_for('clear_history_route') }}" method="POST" onsubmit="return confirm('Are you sure you want to clear all inspection history?');" style="display: inline;">
+                <button type="submit" class="btn btn-outline-danger">
+                    <span class="btn-icon">🗑️</span> Clear History
+                </button>
+            </form>
+            {% endif %}
+            <a href="{{ url_for('index') }}" class="btn btn-primary">
+                <span class="btn-icon">➕</span> New Inspection
+            </a>
+        </div>
+    </div>
+
+    <div class="card history-card">
+        {% if not records %}
+            <div class="empty-detections-box">
+                <div class="empty-icon">📋</div>
+                <h3>No Inspections Recorded Yet</h3>
+                <p>Run your first road damage detection to see the results saved here in the history log.</p>
+                <div style="margin-top: 1.5rem;">
+                    <a href="{{ url_for('index') }}" class="btn btn-primary">Analyze an Image Now</a>
+                </div>
+            </div>
+        {% else %}
+            <div class="table-responsive">
+                <table class="data-table history-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Date & Time</th>
+                            <th>Location</th>
+                            <th>Damages Found</th>
+                            <th>Overall Condition</th>
+                            <th>Thumbnail Preview</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in records %}
+                        <tr>
+                            <td><strong>#{{ r.id }}</strong></td>
+                            <td class="history-date">{{ r.timestamp }}</td>
+                            <td><strong>{{ r.location }}</strong></td>
+                            <td>
+                                <span class="badge-count">{{ r.damage_count }}</span>
+                            </td>
+                            <td>
+                                <span class="condition-badge-sm condition-{{ r.condition | lower }}">
+                                    {{ r.condition }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="thumb-pair">
+                                    <img src="{{ url_for('static', filename='uploads/' ~ r.original_image) }}" alt="Original" class="history-thumb" title="Original Image">
+                                    <span class="thumb-arrow">&rarr;</span>
+                                    <img src="{{ url_for('static', filename='results/' ~ r.annotated_image) }}" alt="Annotated" class="history-thumb" title="Annotated AI Result">
+                                </div>
+                            </td>
+                            <td>
+                                <div class="action-links">
+                                    <a href="{{ url_for('view_history_item', inspection_id=r.id) }}" class="btn btn-sm btn-secondary">
+                                        View
+                                    </a>
+                                    <a href="{{ url_for('download_result', filename=r.annotated_image) }}" class="btn btn-sm btn-outline" download title="Download Annotated Image">
+                                        Download
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}

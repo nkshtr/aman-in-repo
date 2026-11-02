@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block title %}404 - Page Not Found{% endblock %}
+
+{% block content %}
+<div class="page-container" style="text-align: center; padding: 4rem 1rem;">
+    <div class="empty-icon" style="font-size: 4rem;">🚧</div>
+    <h1 style="font-size: 2.2rem; margin: 1rem 0;">404 - Roadblock Ahead</h1>
+    <p style="color: #64748b; max-width: 480px; margin: 0 auto 2rem auto;">
+        The page or image you are looking for does not exist or has been removed.
+    </p>
+    <a href="{{ url_for('index') }}" class="btn btn-primary">Return to Home</a>
+</div>
+{% endblock %}
